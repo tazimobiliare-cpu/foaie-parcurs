@@ -1,0 +1,60 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import os
+
+# Configurare pagină pentru mobil
+st.set_page_config(page_title="Foaie Parcurs", page_icon="🚗")
+
+# Fișierul de stocare
+DB_FILE = "foaie_parcurs_2026.csv"
+
+st.title("🚗 Foaie de Parcurs")
+st.write(f"Data: {datetime.now().strftime('%d-%m-%Y')}")
+
+# Funcție salvare
+def salveaza_date(data, km_s, traseu, km_f):
+    df = pd.DataFrame([[data, km_s, traseu, km_f]], 
+                      columns=["Data", "KM Start", "Traseu", "KM Final"])
+    if not os.path.isfile(DB_FILE):
+        df.to_csv(DB_FILE, index=False)
+    else:
+        df.to_csv(DB_FILE, mode='a', header=False, index=False)
+
+# Interfața
+km_s = st.number_input("KM Plecare (Bord)", min_value=0, step=1)
+traseu = st.text_input("Traseu (Ex: Str. A > Str. B)")
+
+# Logica de seară (După ora 17:00)
+ora_actuala = datetime.now().hour
+km_f = 0
+if ora_actuala >= 17:
+    st.warning("🌙 Este ora închiderii. Introdu KM finali:")
+    km_f = st.number_input("KM Final (Bord)", min_value=km_s, step=1)
+
+if st.button("✅ Salvează înregistrarea"):
+    if traseu == "":
+        st.error("Te rugăm să introduci traseul!")
+    else:
+        data_ora = datetime.now().strftime("%d-%m-%Y %H:%M")
+        salveaza_date(data_ora, km_s, traseu, km_f)
+        st.success("Salvat cu succes!")
+
+st.divider()
+
+# Secțiune Istoric și Descărcare
+if os.path.isfile(DB_FILE):
+    df_vizualizare = pd.read_csv(DB_FILE)
+    
+    with st.expander("Vezi înregistrările lunii"):
+        st.dataframe(df_vizualizare)
+    
+    with open(DB_FILE, "rb") as file:
+        st.download_button(
+            label="📥 Descarcă Foaia de Parcurs (CSV)",
+            data=file,
+            file_name=f"Foaie_Parcurs_{datetime.now().strftime('%m_%Y')}.csv",
+            mime="text/csv",
+        )
+else:
+    st.info("Nu există încă date salvate pentru luna aceasta.")
