@@ -1,60 +1,74 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import os
+from datetime import datetime
 
-# Configurare pagină pentru mobil
-st.set_page_config(page_title="Foaie Parcurs", page_icon="🚗")
+# 1. Configurare Pagină
+st.set_page_config(page_title="Foaie Parcurs 2026", page_icon="🚗")
 
-# Fișierul de stocare
-DB_FILE = "foaie_parcurs_2026.csv"
+# 2. Definire fișier de date
+FISIER_DATE = "foaie_parcurs.csv"
 
-st.title("🚗 Foaie de Parcurs")
-st.write(f"Data: {datetime.now().strftime('%d-%m-%Y')}")
-
-# Funcție salvare
-def salveaza_date(data, km_s, traseu, km_f):
-    df = pd.DataFrame([[data, km_s, traseu, km_f]], 
-                      columns=["Data", "KM Start", "Traseu", "KM Final"])
-    if not os.path.isfile(DB_FILE):
-        df.to_csv(DB_FILE, index=False)
+# 3. Funcție pentru salvarea datelor
+def adauga_inregistrare(data, km_s, traseu, km_f):
+    # Creăm un tabel (DataFrame) cu noua linie
+    noua_linie = pd.DataFrame([[data, km_s, traseu, km_f]], 
+                              columns=["Data", "KM Start", "Traseu", "KM Final"])
+    
+    # Dacă fișierul nu există, îl creăm acum
+    if not os.path.isfile(FISIER_DATE):
+        noua_linie.to_csv(FISIER_DATE, index=False)
     else:
-        df.to_csv(DB_FILE, mode='a', header=False, index=False)
+        # Dacă există, adăugăm la final (append)
+        noua_linie.to_csv(FISIER_DATE, mode='a', header=False, index=False)
 
-# Interfața
-km_s = st.number_input("KM Plecare (Bord)", min_value=0, step=1)
-traseu = st.text_input("Traseu (Ex: Str. A > Str. B)")
+# 4. Interfața Utilizatorului
+st.title("📋 Foaie de Parcurs Automată")
+st.write("Înregistrare traseu zilnic")
 
-# Logica de seară (După ora 17:00)
+# Data și ora curentă (se completează singure)
+data_acum = datetime.now().strftime("%d-%m-%Y %H:%M")
+st.info(f"📅 Data curentă: {data_acum}")
+
+# Intrări de date
+km_start = st.number_input("Introdu KM la plecare (bord):", min_value=0, step=1)
+traseu = st.text_input("Traseu (ex: Str. A > Str. B):")
+
+# Logica pentru ora 17:00
 ora_actuala = datetime.now().hour
-km_f = 0
-if ora_actuala >= 17:
-    st.warning("🌙 Este ora închiderii. Introdu KM finali:")
-    km_f = st.number_input("KM Final (Bord)", min_value=km_s, step=1)
+km_final = 0
 
+if ora_actuala >= 17:
+    st.warning("🌙 Este după ora 17:00. Te rugăm să închizi foaia de parcurs.")
+    km_final = st.number_input("Introdu KM la sosire (bord):", min_value=km_start, step=1)
+else:
+    st.info("ℹ️ Câmpul pentru KM Final va apărea automat după ora 17:00.")
+
+# 5. Butonul de Salvare
 if st.button("✅ Salvează înregistrarea"):
     if traseu == "":
-        st.error("Te rugăm să introduci traseul!")
+        st.error("⚠️ Te rugăm să introduci traseul înainte de a salva!")
     else:
-        data_ora = datetime.now().strftime("%d-%m-%Y %H:%M")
-        salveaza_date(data_ora, km_s, traseu, km_f)
-        st.success("Salvat cu succes!")
+        adauga_inregistrare(data_acum, km_start, traseu, km_final)
+        st.success("💾 Datele au fost salvate cu succes!")
 
 st.divider()
 
-# Secțiune Istoric și Descărcare
-if os.path.isfile(DB_FILE):
-    df_vizualizare = pd.read_csv(DB_FILE)
+# 6. Vizualizare și Descărcare Istoric
+st.subheader("📊 Istoric înregistrări")
+
+if os.path.isfile(FISIER_DATE):
+    # Citim datele pentru a le arăta în tabel
+    df = pd.read_csv(FISIER_DATE)
+    st.dataframe(df, use_container_width=True)
     
-    with st.expander("Vezi înregistrările lunii"):
-        st.dataframe(df_vizualizare)
-    
-    with open(DB_FILE, "rb") as file:
+    # Buton de descărcare fișier pentru Excel
+    with open(FISIER_DATE, "rb") as file:
         st.download_button(
-            label="📥 Descarcă Foaia de Parcurs (CSV)",
+            label="📥 Descarcă fișierul CSV pentru Excel",
             data=file,
             file_name=f"Foaie_Parcurs_{datetime.now().strftime('%m_%Y')}.csv",
-            mime="text/csv",
+            mime="text/csv"
         )
 else:
-    st.info("Nu există încă date salvate pentru luna aceasta.")
+    st.write("Nu există înregistrări salvate încă.")
